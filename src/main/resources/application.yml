@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+
+spring:
+  application:
+    name: banksystem
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/diploma
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update #off in prod
+    properties:
+      hibernate:
+        default_schema: banking
+        show-sql: true
+  liquibase:
+    enabled: false #on in prod
+    default-schema: banking
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+
+
+logging:
+  level:
+    org:
+      hibernate:
+        SQL: DEBUG
+        type: TRACE
+      springframework:
+        security: DEBUG
+        web:
+          servlet:
+            DispatcherServlet: DEBUG
