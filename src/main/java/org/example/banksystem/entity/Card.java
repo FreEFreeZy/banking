@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Date;
+
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,14 +15,29 @@ import lombok.NoArgsConstructor;
 public class Card {
 
     @Id
-    private String card_number;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer cardId;
 
     @Column(nullable = false)
-    private Integer user_id;
+    private String encryptedCardNumber;
 
     @Column(nullable = false)
-    private String card_owner;
+    private String cardholder;
 
     @Column(nullable = false)
-    private Integer card_cvv;
+    private Date expiry_date;
+
+    @Column(nullable = false)
+    private String status;
+
+    @Column(nullable = false)
+    private Double balance;
+
+    public Card(String encryptedCardNumber, String cardholder, Date expiry_date, String status, Double balance) {
+        this.encryptedCardNumber = encryptedCardNumber;
+        this.cardholder = cardholder;
+        this.expiry_date = expiry_date;
+        this.status = status;
+        this.balance = balance;
+    }
 }
