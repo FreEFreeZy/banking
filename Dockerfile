@@ -1,4 +1,4 @@
-FROM maven:3.14-eclipse-temurin-23 AS builder
+FROM maven:3.9-eclipse-temurin-23 AS builder
 WORKDIR /app
 
 COPY pom.xml .
@@ -8,7 +8,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 
-FROM eclipse-temurin:23-jre-jammy
+FROM eclipse-temurin:23-jre
 WORKDIR /app
 
 RUN groupadd -r spring && useradd -r -g spring spring
