@@ -6,6 +6,8 @@ jwt:
   key: cookieencodedwithbase32algorithmabracadabraineedmorecharactersinthiskey
   expiration_time: 3600000
 
+codec:
+  key: 32charactersareeasytomakeanduse!
 
 spring:
   application:
@@ -17,17 +19,23 @@ spring:
     password: postgres
   jpa:
     hibernate:
-      ddl-auto: update #off in prod
+      ddl-auto: none
     properties:
       hibernate:
         default_schema: banking
         show-sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   liquibase:
-    enabled: false #on in prod
+    enabled: true
     default-schema: banking
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
-
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
 
 logging:
   level:

@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 @Component
 public class CommonsCodecHasher {
 
-    @Value("${jwt.key}")
+    @Value("${codec.key}")
     private byte[] key;
 
     public String encode(String input) {

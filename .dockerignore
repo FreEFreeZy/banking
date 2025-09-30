@@ -1,0 +1,15 @@
+.git
+.gitignore
+README.md
+**/target/
+**/.classpath
+**/.project
+**/.settings
+**/.factorypath
+**/bin/
+**/*.iml
+**/.idea
+**/node_modules
+Dockerfile*
+docker-compose*
+.dockerignore

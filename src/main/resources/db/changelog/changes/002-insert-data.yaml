@@ -1,0 +1,78 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-insert-data
+      author: George
+      preConditions:
+        - sqlCheck:
+            sql: "SELECT COUNT(*) FROM users"
+            expectedResult: "0"
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: username
+                  value: "admin"
+              - column:
+                  name: password
+                  value: "$2a$10$AUdx/T//jApJD.Wo8cvg2eSzexP2DftG1R5gb05zPfzoEdItxnwUi"
+              - column:
+                  name: role
+                  value: "ROLE_ADMIN"
+
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: username
+                  value: "user"
+              - column:
+                  name: password
+                  value: "$2a$10$AUdx/T//jApJD.Wo8cvg2eSzexP2DftG1R5gb05zPfzoEdItxnwUi"
+              - column:
+                  name: role
+                  value: "ROLE_USER"
+
+        - insert:
+            tableName: cards
+            columns:
+              - column:
+                  name: card_id
+                  value: "1"
+              - column:
+                  name: encrypted_card_number
+                  value: "cK6UMOFi5g+FK9ifGJdcOT0HPzb3xNkv"
+              - column:
+                  name: cardholder
+                  value: "user"
+              - column:
+                  name: expiry_date
+                  value: "2030-01-01"
+              - column:
+                  name: status
+                  value: "ACTIVE"
+              - column:
+                  name: balance
+                  value: "50"
+
+        - insert:
+            tableName: cards
+            columns:
+              - column:
+                  name: card_id
+                  value: "2"
+              - column:
+                  name: encrypted_card_number
+                  value: "f5Tov2zEyd5riPOIRayzOj0HPzb3xNkv"
+              - column:
+                  name: cardholder
+                  value: "user"
+              - column:
+                  name: expiry_date
+                  value: "2030-01-01"
+              - column:
+                  name: status
+                  value: "ACTIVE"
+              - column:
+                  name: balance
+                  value: "30"

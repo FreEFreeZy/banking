@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: bank-postgres
+    environment:
+      POSTGRES_DB: bank
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - bank-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bank-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Database configuration
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bank
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+
+      # JPA configuration
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: banking
+      SPRING_JPA_PROPERTIES_HIBERNATE_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+
+      # Liquibase
+      SPRING_LIQUIBASE_ENABLED: "true"
+      SPRING_LIQUIBASE_DEFAULT_SCHEMA: banking
+      SPRING_LIQUIBASE_CHANGE_LOG: classpath:db/changelog/db.changelog-master.yaml
+
+      # Security (JWT)
+      JWT_KEY: "cookieencodedwithbase32algorithmabracadabraineedmorecharactersinthiskey"
+      JWT_EXPIRATION_TIME: "3600000"
+
+      # Encryption
+      CODEC_KEY: "32charactersareeasytomakeanduse!"
+
+      # Swagger (SpringDoc)
+      SPRINGDOC_API_DOCS_PATH: "/v3/api-docs"
+      SPRINGDOC_SWAGGER_UI_PATH: "/swagger-ui.html"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "true"
+
+      # Logging
+      LOGGING_LEVEL_ORG_HIBERNATE_SQL: "DEBUG"
+      LOGGING_LEVEL_ORG_HIBERNATE_TYPE: "TRACE"
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: "DEBUG"
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB_SERVLET_DISPATCHERSERVLET: "DEBUG"
+
+      # Application
+      SPRING_APPLICATION_NAME: "banksystem"
+      SERVER_PORT: "8080"
+
+    depends_on:
+      - postgres
+    networks:
+      - bank-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  bank-network:
+    driver: bridge
