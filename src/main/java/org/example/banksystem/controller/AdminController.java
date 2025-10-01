@@ -1,18 +1,11 @@
 package org.example.banksystem.controller;
 
-import org.example.banksystem.dto.CardRequest;
-import org.example.banksystem.dto.CardResponse;
-import org.example.banksystem.dto.UserRequest;
-import org.example.banksystem.dto.UserResponse;
-import org.example.banksystem.entity.Card;
-import org.example.banksystem.entity.Role;
-import org.example.banksystem.entity.User;
-import org.example.banksystem.security.CommonsCodecHasher;
+import lombok.RequiredArgsConstructor;
+import org.example.banksystem.dto.request.*;
+import org.example.banksystem.dto.response.*;
 import org.example.banksystem.service.CardService;
 import org.example.banksystem.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -26,24 +19,33 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+/**
+ * REST контроллер для административного управления пользователями и банковскими картами
+ * <p>
+ * Предоставляет API для выполнения CRUD операций с пользователями и картами.
+ * Все endpoints требуют аутентификации с ролью ADMIN.
+ * </p>
+ *
+ * @author George
+ * @version 1.0
+ * @see CardService
+ * @see UserService
+ */
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/admin")
 @Tag(name = "Admin Management", description = "API для административного управления пользователями и картами")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
-    @Autowired
-    private CardService cardService;
+    private final CardService cardService;
+    private final UserService userService;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private CommonsCodecHasher codec;
-
-    @Autowired
-    private BCryptPasswordEncoder bCryptPasswordEncoder;
-
+    /**
+     * Получает список всех банковских карт в системе
+     *
+     * @return ResponseEntity с ApiResponseDTO содержащим список карт
+     */
     @Operation(
             summary = "Получить все карты",
             description = "Возвращает список всех банковских карт в системе. Только для администраторов."
@@ -64,11 +66,16 @@ public class AdminController {
             )
     })
     @GetMapping("/cards")
-    public ResponseEntity<Map<String, List<CardResponse>>> getCards() {
-        return ResponseEntity.ok(Map.of("Cards",
-                cardService.getAll().stream().map(card -> cardService.parseCard(card)).toList()));
+    public ResponseEntity<ApiResponseDTO<List<CardResponse>>> getCards() {
+        return ResponseEntity.ok(ApiResponseDTO.success("Cards", cardService.getAllCards()));
     }
 
+    /**
+     * Создает новую банковскую карту для пользователя
+     *
+     * @param card DTO с данными для создания карты
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Добавить новую карту",
             description = "Создание новой банковской карты для пользователя. Только для администраторов."
@@ -93,28 +100,23 @@ public class AdminController {
             )
     })
     @PostMapping("/cards")
-    public ResponseEntity<Map<String, String>> addCard(
+    public ResponseEntity<ApiResponseDTO<Void>> addCard(
             @Parameter(
                     description = "Данные для создания карты",
                     required = true,
                     schema = @Schema(implementation = CardRequest.class)
             )
             @RequestBody CardRequest card) {
-        if (!userService.exists(card.getCardholder())) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "User not found"));
-        }
-        if (cardService.exists(codec.encode(card.getCard_number()))) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "Card already exists"));
-        }
-        cardService.save(new Card(
-                codec.encode(card.getCard_number()),
-                card.getCardholder(),
-                card.getExpiry_date(),
-                card.getStatus(),
-                card.getBalance()));
-        return ResponseEntity.ok(Map.of("Response", "Card added"));
+        cardService.addCard(card.card_number(), card.cardholder(), card.expiry_date());
+        return ResponseEntity.ok(ApiResponseDTO.success("Card added"));
     }
 
+    /**
+     * Обновляет данные существующей банковской карты
+     *
+     * @param card DTO с новыми данными карты
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Обновить карту",
             description = "Обновление данных банковской карты по ID. Только для администраторов."
@@ -138,37 +140,24 @@ public class AdminController {
                     description = "Недостаточно прав (требуется роль ADMIN)"
             )
     })
-    @PutMapping("/cards/{id}")
-    public ResponseEntity<Map<String, String>> updateCard(
-            @Parameter(
-                    description = "ID карты для обновления",
-                    required = true,
-                    example = "1"
-            )
-            @PathVariable("id") Integer id,
+    @PutMapping("/cards/")
+    public ResponseEntity<ApiResponseDTO<Void>> updateCard(
             @Parameter(
                     description = "Новые данные карты",
                     required = true,
                     schema = @Schema(implementation = CardRequest.class)
             )
             @RequestBody CardRequest card) {
-        if (!userService.exists(card.getCardholder())) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "User not found"));
-        }
-        if (!cardService.exists(codec.encode(card.getCard_number()))) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "Card not found"));
-        }
-
-        cardService.save(new Card(
-                id,
-                codec.encode(card.getCard_number()),
-                card.getCardholder(),
-                card.getExpiry_date(),
-                card.getStatus(),
-                card.getBalance()));
-        return ResponseEntity.ok(Map.of("Response", "Card added"));
+        cardService.updateCard(card.cardId(), card.card_number(), card.cardholder(), card.expiry_date(), card.status(), card.balance());
+        return ResponseEntity.ok(ApiResponseDTO.success("Card updated"));
     }
 
+    /**
+     * Удаляет банковскую карту по идентификатору
+     *
+     * @param id идентификатор карты для удаления
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Удалить карту",
             description = "Удаление банковской карты по ID. Только для администраторов."
@@ -193,20 +182,22 @@ public class AdminController {
             )
     })
     @DeleteMapping("/cards/{id}")
-    public ResponseEntity<Map<String, String>> deleteCard(
+    public ResponseEntity<ApiResponseDTO<Void>> deleteCard(
             @Parameter(
                     description = "ID карты для удаления",
                     required = true,
                     example = "1"
             )
             @PathVariable("id") Integer id) {
-        if (!cardService.exists(id)) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "Card not found"));
-        }
         cardService.delete(id);
-        return ResponseEntity.ok(Map.of("Response", "Card deleted"));
+        return ResponseEntity.ok(ApiResponseDTO.success("Card successfully deleted"));
     }
 
+    /**
+     * Получает список всех пользователей системы
+     *
+     * @return ResponseEntity с ApiResponseDTO содержащим список пользователей
+     */
     @Operation(
             summary = "Получить всех пользователей",
             description = "Возвращает список всех пользователей системы. Только для администраторов."
@@ -227,10 +218,16 @@ public class AdminController {
             )
     })
     @GetMapping("/users")
-    public ResponseEntity<Map<String, List<UserResponse>>> getUsers() {
-        return ResponseEntity.ok(Map.of("Users", userService.getAll().stream().map(user -> userService.parseUser(user)).toList()));
+    public ResponseEntity<ApiResponseDTO<List<UserResponse>>> getUsers() {
+        return ResponseEntity.ok(ApiResponseDTO.success("Users", userService.getAllUsers()));
     }
 
+    /**
+     * Создает нового пользователя в системе
+     *
+     * @param user DTO с данными для создания пользователя
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Добавить нового пользователя",
             description = "Создание нового пользователя в системе. Только для администраторов."
@@ -255,29 +252,23 @@ public class AdminController {
             )
     })
     @PostMapping("/users")
-    public ResponseEntity<Map<String, String>> addUser(
+    public ResponseEntity<ApiResponseDTO<Void>> addUser(
             @Parameter(
                     description = "Данные для создания пользователя",
                     required = true,
                     schema = @Schema(implementation = UserRequest.class)
             )
             @RequestBody UserRequest user) {
-        if (userService.exists(user.getUsername())) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "User already exists"));
-        }
-        Optional<Role> optionalRole = Arrays.stream(Role.values())
-                .filter(role -> role.name().equals(user.getRole()))
-                .findFirst();
-        if (optionalRole.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "Role not found"));
-        }
-        userService.save(new User(
-                user.getUsername(),
-                bCryptPasswordEncoder.encode(user.getPassword()),
-                optionalRole.get()));
-        return ResponseEntity.ok(Map.of("Response", "User added"));
+        userService.addUser(user.username(), user.password(), user.role());
+        return ResponseEntity.ok(ApiResponseDTO.success("User successfully added"));
     }
 
+    /**
+     * Обновляет данные существующего пользователя
+     *
+     * @param user DTO с новыми данными пользователя
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Обновить пользователя",
             description = "Обновление данных пользователя по ID. Только для администраторов."
@@ -301,36 +292,24 @@ public class AdminController {
                     description = "Недостаточно прав (требуется роль ADMIN)"
             )
     })
-    @PutMapping("/users/{id}")
-    public ResponseEntity<Map<String, String>> updateUser(
-            @Parameter(
-                    description = "ID пользователя для обновления",
-                    required = true,
-                    example = "user123"
-            )
-            @PathVariable("id") String id,
+    @PutMapping("/users/")
+    public ResponseEntity<ApiResponseDTO<Void>> updateUser(
             @Parameter(
                     description = "Новые данные пользователя",
                     required = true,
                     schema = @Schema(implementation = UserRequest.class)
             )
             @RequestBody UserRequest user) {
-        if (!userService.exists(id)) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "User not found"));
-        }
-        Optional<Role> optionalRole = Arrays.stream(Role.values())
-                .filter(role -> role.name().equals(user.getRole()))
-                .findFirst();
-        if (optionalRole.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "Role not found"));
-        }
-        userService.save(new User(
-                id,
-                bCryptPasswordEncoder.encode(user.getPassword()),
-                optionalRole.get()));
-        return ResponseEntity.ok(Map.of("Response", "User updated"));
+        userService.updateUser(user.username(), user.password(), user.role());
+        return ResponseEntity.ok(ApiResponseDTO.success("User successfully updated"));
     }
 
+    /**
+     * Удаляет пользователя по идентификатору
+     *
+     * @param id идентификатор пользователя для удаления
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Удалить пользователя",
             description = "Удаление пользователя по ID."
@@ -355,17 +334,14 @@ public class AdminController {
             )
     })
     @DeleteMapping("/users/{id}")
-    public ResponseEntity<Map<String, String>> deleteUser(
+    public ResponseEntity<ApiResponseDTO<Void>> deleteUser(
             @Parameter(
                     description = "ID пользователя для удаления",
                     required = true,
                     example = "user123"
             )
             @PathVariable("id") String id) {
-        if (!userService.exists(id)) {
-            return ResponseEntity.badRequest().body(Map.of("Response", "User not found"));
-        }
         userService.delete(id);
-        return ResponseEntity.ok(Map.of("Response", "User deleted"));
+        return ResponseEntity.ok(ApiResponseDTO.success("User successfully deleted"));
     }
 }

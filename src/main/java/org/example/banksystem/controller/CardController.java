@@ -1,17 +1,16 @@
 package org.example.banksystem.controller;
 
-import org.example.banksystem.dto.*;
-import org.example.banksystem.security.CommonsCodecHasher;
+import lombok.RequiredArgsConstructor;
+import org.example.banksystem.dto.request.*;
+import org.example.banksystem.dto.response.ApiResponseDTO;
+import org.example.banksystem.dto.response.CardResponse;
+import org.example.banksystem.entity.User;
 import org.example.banksystem.service.CardService;
-import org.example.banksystem.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.util.List;
-import java.util.Map;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -22,24 +21,32 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+/**
+ * REST контроллер для операций пользователя с банковскими картами
+ * <p>
+ * Предоставляет API для управления картами текущего аутентифицированного пользователя.
+ * Все endpoints требуют аутентификации и доступны пользователям с ролями USER и ADMIN.
+ * </p>
+ *
+ * @author George
+ * @version 1.0
+ * @see CardService
+ */
+@RequiredArgsConstructor
 @RequestMapping("/api/card")
 @RestController
 @Tag(name = "Card Operations", description = "API для операций пользователя с банковскими картами")
 @SecurityRequirement(name = "bearerAuth")
 public class CardController {
 
-    @Autowired
-    private CardService cardService;
+    private final CardService cardService;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private CommonsCodecHasher codec;
-
-    @Autowired
-    private BCryptPasswordEncoder bCryptPasswordEncoder;
-
+    /**
+     * Получает список всех карт текущего аутентифицированного пользователя
+     *
+     * @param user аутентифицированный пользователь
+     * @return ResponseEntity с ApiResponseDTO содержащим список карт пользователя
+     */
     @Operation(
             summary = "Получить карты пользователя",
             description = "Возвращает список всех карт текущего аутентифицированного пользователя"
@@ -56,16 +63,22 @@ public class CardController {
             )
     })
     @GetMapping("/cards")
-    public ResponseEntity<Map<String, List<CardResponse>>> getCards(
+    public ResponseEntity<ApiResponseDTO<List<CardResponse>>> getCards(
             @Parameter(
                     description = "Аутентифицированный пользователь",
                     hidden = true
             )
-            Principal principal) {
-        return ResponseEntity.ok(Map.of("Cards", cardService.getByUser(principal.getName()).stream()
-                .map(card -> cardService.parseCard(card)).toList()));
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(ApiResponseDTO.success("Cards:", cardService.getCardsByUsername(user.getUsername())));
     }
 
+    /**
+     * Блокирует карту пользователя по идентификатору
+     *
+     * @param card_id идентификатор карты для блокировки
+     * @param user аутентифицированный пользователь
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Заблокировать карту",
             description = "Блокировка карты по ID. Пользователь может блокировать только свои карты."
@@ -91,7 +104,7 @@ public class CardController {
             )
     })
     @GetMapping("/cards/block/{card_id}")
-    public ResponseEntity<Map<String, String>> blockCard(
+    public ResponseEntity<ApiResponseDTO<Void>> blockCard(
             @Parameter(
                     description = "ID карты для блокировки",
                     required = true,
@@ -102,14 +115,18 @@ public class CardController {
                     description = "Аутентифицированный пользователь",
                     hidden = true
             )
-            Principal principal) {
-        if (!cardService.validateOwner(principal.getName(), card_id)) {
-            return ResponseEntity.status(403).body(Map.of("message", "Card does not belong to this account"));
-        }
-        cardService.blockCard(card_id);
-        return ResponseEntity.ok(Map.of("message", "Card blocked"));
+            @AuthenticationPrincipal User user) {
+        cardService.blockCard(card_id, user.getUsername());
+        return ResponseEntity.ok(ApiResponseDTO.success("Card successfully blocked"));
     }
 
+    /**
+     * Выполняет перевод средств между картами текущего пользователя
+     *
+     * @param request DTO с данными для перевода
+     * @param user аутентифицированный пользователь
+     * @return ResponseEntity с результатом операции
+     */
     @Operation(
             summary = "Перевод между картами",
             description = "Выполнение перевода средств между картами текущего пользователя"
@@ -136,7 +153,7 @@ public class CardController {
             )
     })
     @PostMapping("/cards/transfer")
-    public ResponseEntity<Map<String, String>> transfer(
+    public ResponseEntity<ApiResponseDTO<Void>> transfer(
             @Parameter(
                     description = "Данные для перевода",
                     required = true,
@@ -147,20 +164,9 @@ public class CardController {
                     description = "Аутентифицированный пользователь",
                     hidden = true
             )
-            Principal principal) {
-        if (!cardService.validateOwner(principal.getName(), request.getFrom())
-                || !cardService.validateOwner(principal.getName(), request.getTo())) {
-            return ResponseEntity.status(403).body(Map.of("message", "Card does not belong to this account"));
-        }
-        if (!cardService.get(request.getFrom()).getStatus().equals("BLOCKED")
-                || !cardService.get(request.getTo()).getStatus().equals("BLOCKED")) {
-            return ResponseEntity.status(400).body(Map.of("message", "Card is blocked"));
-        }
-        if (cardService.get(request.getFrom()).getBalance() < request.getAmount()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Not enough balance"));
-        }
-        cardService.transfer(request.getFrom(), request.getTo(), request.getAmount());
-        return ResponseEntity.ok(Map.of("message", "Money transferred"));
+            @AuthenticationPrincipal User user) {
+        cardService.transfer(request.from(), request.to(), request.amount(), user.getUsername());
+        return ResponseEntity.ok(ApiResponseDTO.success("Card successfully transferred"));
     }
 
 }

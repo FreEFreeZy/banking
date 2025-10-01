@@ -8,12 +8,33 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Компонент для шифрования и дешифрования данных с использованием AES алгоритма
+ * <p>
+ * Предоставляет методы для кодирования и декодирования чувствительных данных,
+ * таких как номера банковских карт, с использованием симметричного шифрования AES.
+ * Использует Base64 для кодирования бинарных данных в строковый формат.
+ * </p>
+ *
+ * @author George
+ * @version 1.0
+ */
 @Component
 public class CommonsCodecHasher {
 
+    /**
+     * Ключ шифрования, настраиваемый через properties файл
+     */
     @Value("${codec.key}")
     private byte[] key;
 
+    /**
+     * Шифрует входную строку с использованием AES алгоритма
+     *
+     * @param input исходная строка для шифрования
+     * @return зашифрованная строка в Base64 формате (обрезанная до 32 символов)
+     * @throws RuntimeException если происходит ошибка шифрования
+     */
     public String encode(String input) {
         try {
             SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
@@ -29,6 +50,13 @@ public class CommonsCodecHasher {
         }
     }
 
+    /**
+     * Дешифрует зашифрованную строку обратно в исходный текст
+     *
+     * @param hash зашифрованная строка в Base64 формате
+     * @return расшифрованная исходная строка
+     * @throws RuntimeException если происходит ошибка дешифрования
+     */
     public String decode(String hash) {
         try {
             SecretKeySpec keySpec = new SecretKeySpec(key, "AES");
